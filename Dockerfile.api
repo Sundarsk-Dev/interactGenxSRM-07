@@ -1,0 +1,23 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Install system dependencies (e.g., ffmpeg for audio processing)
+RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements (simulated)
+COPY config/requirements.txt .
+# If requirements.txt doesn't exist yet, we install basic ones inline for this demo
+RUN pip install fastapi uvicorn[standard] python-multipart pydantic requests PyYAML torch numpy
+
+# Copy Code
+COPY api/ ./api/
+COPY core_models/ ./core_models/
+COPY config/ ./config/
+
+# Initialize storage dirs
+RUN mkdir -p storage/outputs storage/sessions storage/temp
+
+EXPOSE 8000
+
+CMD ["python", "api/server.py"]

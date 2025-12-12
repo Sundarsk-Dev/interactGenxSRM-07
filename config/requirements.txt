@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+requests
+PyYAML
+torch
+numpy
+scipy
+librosa

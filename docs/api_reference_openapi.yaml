@@ -1,0 +1,78 @@
+openapi: 3.0.0
+info:
+  title: InteractGEN API
+  version: 1.0.0
+  description: Text-to-Speech & Talking Head Generation API
+paths:
+  /v1/tts:
+    post:
+      summary: Convert text to speech
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TTSRequest'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TTSResponse'
+  /v1/animate:
+    post:
+      summary: Animate a face with audio
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+                audio:
+                  type: string
+                  format: binary
+                consent_confirmed:
+                  type: boolean
+      responses:
+        '200':
+          description: Video generated
+  /v1/render:
+    post:
+      summary: Full pipeline render
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+                text:
+                  type: string
+                voice_profile_id:
+                  type: string
+                consent_confirmed:
+                  type: boolean
+      responses:
+        '200':
+          description: Video generated
+components:
+  schemas:
+    TTSRequest:
+      type: object
+      properties:
+        text:
+          type: string
+        voice_profile_id:
+          type: string
+    TTSResponse:
+      type: object
+      properties:
+        audio_url:
+          type: string
+        visemes:
+          type: array

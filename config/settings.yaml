@@ -1,0 +1,25 @@
+app_name: "InteractGEN"
+version: "1.0.0"
+environment: "development"
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
+
+paths:
+  output_dir: "outputs"
+  temp_dir: "temp"
+  models_dir: "core_models/weights"
+
+tts:
+  default_engine: "fastspeech2"
+  default_voice: "en_us_male"
+
+lip_sync:
+  default_engine: "wav2lip"
+  checkpoint_path: "core_models/weights/wav2lip.pth"
+
+storage:
+  type: "local" # or s3
+  local_path: "storage"
