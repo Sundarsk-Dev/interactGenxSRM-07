@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import VirtualGuide from './components/VirtualGuide';
 import axios from 'axios';
 
 const API_BASE = "http://localhost:8000/v1";
@@ -131,6 +132,8 @@ function App() {
                     </div>
                 </div>
             </div>
+            {/* Virtual Guide Widget */}
+            <VirtualGuide />
         </div>
     );
 }

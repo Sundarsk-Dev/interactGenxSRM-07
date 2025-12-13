@@ -3,6 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import yaml
 import os
+import sys
+
+# Ensure root directory is in python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from dotenv import load_dotenv
+load_dotenv()
 
 # Load Configuration
 def load_config():
@@ -32,11 +39,12 @@ app.add_middleware(
 )
 app.add_middleware(ContentSafetyMiddleware)
 
-from api.routers import tts, voice_cloning, animate
+from api.routers import tts, voice_cloning, animate, agent
 
 app.include_router(tts.router, prefix="/v1", tags=["Text to Speech"])
 app.include_router(voice_cloning.router, prefix="/v1", tags=["Voice Cloning"])
 app.include_router(animate.router, prefix="/v1", tags=["Animation"])
+app.include_router(agent.router, prefix="/agent", tags=["Agent"])
 
 from fastapi.staticfiles import StaticFiles
 
