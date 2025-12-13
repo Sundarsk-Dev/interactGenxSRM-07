@@ -13,7 +13,13 @@ class STTEngine:
         """
         Transcribes audio file to text.
         """
-        segments, info = self.model.transcribe(audio_path, beam_size=5, vad_filter=True, vad_parameters=dict(min_silence_duration_ms=500))
+        segments, info = self.model.transcribe(
+            audio_path, 
+            beam_size=5, 
+            language="en", 
+            vad_filter=False
+        )
+
         text = " ".join([segment.text for segment in segments])
         return text.strip()
 

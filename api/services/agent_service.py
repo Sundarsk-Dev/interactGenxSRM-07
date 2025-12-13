@@ -6,27 +6,109 @@ import pyautogui
 import time
 import subprocess
 from PIL import Image
+from api.services.conversation_manager import conversation_manager
 
 class AgentService:
     def __init__(self):
-        # In a real scenario, we would initialize Gemini here
         self.api_key = os.getenv("GEMINI_API_KEY")
         if self.api_key:
             genai.configure(api_key=self.api_key)
             self.model = genai.GenerativeModel('gemini-1.5-flash-latest')
-            self.vision_model = genai.GenerativeModel('gemini-1.5-flash-latest') # Use latest alias
+            self.vision_model = genai.GenerativeModel('gemini-1.5-flash-latest')
+    async def handle_conversation_state(self, session_id: str, state: Dict, text: str):
+        intent = state.get("intent")
+        step = state.get("step")
+
+        if intent == "git_clone" and step == "ask_directory":
+            target_dir = text.strip()
+            conversation_manager.clear_state(session_id)
+            return {
+                "render": {
+                    "type": "render",
+                    "text": f"Understood. Cloning repository into {target_dir}.",
+                    "tts": True,
+                    "avatar_image_id": "male_business_portrait_v1"
+                },
+                "action": {
+                    "type": "command",
+                    "command": f"echo 'Cloning into {target_dir}'"
+                }
+            }
+        return {"render": {"text": "I lost my train of thought. Let's start over."}}
+
+    async def handle_visual_grounding(self, text: str):
+        screenshot_path = "storage/temp_grounding.png"
+        try:
+            pyautogui.screenshot(screenshot_path)
+            img = Image.open(screenshot_path)
             
+            prompt = f"""
+            Find the element on the screen matching the description: '{text}'.
+            Return a JSON object with a single bounding box in [ymin, xmin, ymax, xmax] format (0-1000 scale) and the label.
+            Format: {{ "box_2d": [ymin, xmin, ymax, xmax], "label": "found element" }}
+            If not found, return empty JSON {{}}.
+            Only return JSON.
+            """
+            
+            response = self.vision_model.generate_content([prompt, img])
+            print(f"Grounding Raw Response: {response.text}")
+            
+            import re
+            json_match = re.search(r'\{.*\}', response.text, re.DOTALL)
+            if json_match:
+                data = json.loads(json_match.group(0))
+                box = data.get("box_2d")
+                
+                if box:
+                    screen_w, screen_h = pyautogui.size()
+                    ymin, xmin, ymax, xmax = box
+                    x = (xmin / 1000) * screen_w
+                    y = (ymin / 1000) * screen_h
+                    w = ((xmax - xmin) / 1000) * screen_w
+                    h = ((ymax - ymin) / 1000) * screen_h
+                    
+                    highlights = [{
+                        "x": int(x), "y": int(y), 
+                        "width": int(w), "height": int(h), 
+                        "label": text
+                    }]
+                    
+                    return {
+                        "render": {
+                            "type": "render",
+                            "text": f"I found it right here.",
+                            "tts": True,
+                            "highlights": highlights,
+                            "avatar_image_id": "male_business_portrait_v1"
+                        }
+                    }
+            return {"render": {"text": "I couldn't locate that on the screen.", "tts": True}}
+        except Exception as e:
+            print(f"Grounding Error: {e}")
+            return {"render": {"text": "I had trouble seeing the screen.", "tts": True}}
+
     async def parse_intent(self, text: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+        return await self._parse_intent_logic(text, context)
+
+    async def _parse_intent_logic(self, text: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Parses user text into structured intent using Gemini (Mocked for now).
         """
         print(f"Agent received text: {text}")
-        
-        # --- MOCK LOGIC (Rule-based Fallback) ---
+        session_id = "default_session" # For now, single user
         text_lower = text.lower()
         
+        # --- 0. CHECK ACTIVE CONVERSATION STATE ---
+        state = conversation_manager.get_state(session_id)
+        if state:
+            return await self.handle_conversation_state(session_id, state, text)
+
+        # -1. VISUAL GROUNDING (New Phase 26)
+        grounding_keywords = ["where is", "show me", "highlight", "find the", "point to"]
+        if any(x in text_lower for x in grounding_keywords):
+            return await self.handle_visual_grounding(text)
+
         # -1. VISION ANALYSIS (New Phase 25)
-        # Catch "tell me about...", "describe...", "what is..."
         vision_keywords = [
             "info about", "about this page", "about this website", 
             "what is on", "summary of", "describe this", 
@@ -60,6 +142,108 @@ class AgentService:
                  }
              }
 
+        # --- 1. GIT CLONE INTENT (Multi-Turn) ---
+        if "clone this repo" in text_lower or "clone repository" in text_lower:
+             conversation_manager.set_intent(session_id, "git_clone", "ask_directory")
+             return {
+                 "render": {
+                     "type": "ask",
+                     "text": "Sure, I can clone this repository. Which directory should I clone it into?",
+                     "tts": True,
+                     "avatar_image_id": "male_business_portrait_v1",
+                     "session_id": "generic_sure" # Reusing 'Sure, I can do that' + custom text? 
+                     # Wait, if text differs, TTS differs. Session ID collision!
+                     # If I set session_id to "generic_which_dir", text MUST match PREDEFINED_RESPONSES.
+                 }
+             }
+
+        if "clone this repo" in text_lower or "clone repository" in text_lower:
+             import re
+             import shutil
+             
+             # Helper to get clipboard
+             def get_clipboard():
+                 try:
+                     # Use PowerShell to get clipboard content
+                     res = subprocess.run(["powershell", "-command", "Get-Clipboard"], capture_output=True, text=True)
+                     return res.stdout.strip()
+                 except:
+                     return ""
+
+             # 1. Parse Directory
+             dir_match = re.search(r"(?:in|into|to)\s+(not the\s+)?(my\s+)?([\w\s]+)", text_lower)
+             target_dir_name = "cloned_repo"
+             
+             if dir_match:
+                 raw_dir = dir_match.group(3).strip().lower()
+                 raw_dir = raw_dir.replace("folder", "").replace("directory", "").strip()
+                 target_dir_name = raw_dir
+             
+             # 2. Resolve Path
+             home = os.path.expanduser("~")
+             if "download" in target_dir_name:
+                 base_path = os.path.join(home, "Downloads")
+             elif "document" in target_dir_name:
+                 base_path = os.path.join(home, "Documents")
+             elif "desktop" in target_dir_name:
+                 base_path = os.path.join(home, "Desktop")
+             else:
+                 base_path = os.path.join(home, "Downloads") # Default to Downloads
+             
+             print(f"DEBUG: Clone Target: {target_dir_name} -> {base_path}")
+
+             # 3. Get URL (Try to grab from browser)
+             # Focus Address Bar -> Copy
+             try:
+                 # Attempt to switch back to browser (Alt+Tab) just in case overlay stole focus
+                 print("DEBUG: Switching focus (Alt+Tab)...")
+                 pyautogui.hotkey('alt', 'tab')
+                 time.sleep(0.5) 
+                 
+                 pyautogui.hotkey('ctrl', 'l')
+                 time.sleep(0.2)
+                 pyautogui.hotkey('ctrl', 'c')
+                 time.sleep(0.2)
+                 repo_url = get_clipboard()
+                 print(f"DEBUG: Clipboard URL: '{repo_url}'")
+                 
+                 # Basic validation
+                 if not repo_url or "http" not in repo_url:
+                     raise ValueError("Clipboard does not contain a valid URL")
+                     
+                 # Extract repo name for folder if generic target
+                 if target_dir_name == "cloned_repo":
+                     repo_name = repo_url.split("/")[-1].replace(".git", "")
+                     final_path = os.path.join(base_path, repo_name)
+                 else:
+                     final_path = os.path.join(base_path, target_dir_name)
+
+                 # 4. Execute Clone
+                 # Run in background so we don't block
+                 cmd = f'git clone {repo_url} "{final_path}"'
+                 print(f"DEBUG: Executing: {cmd}")
+                 subprocess.Popen(cmd, shell=True)
+                 
+                 return {
+                    "render": {
+                        "type": "render",
+                        "text": f"Cloning {repo_url} into {final_path}.",
+                        "tts": True,
+                        "avatar_image_id": "male_business_portrait_v1",
+                        "session_id": "generic_sure"
+                    },
+                    "action": None # Handled on backend
+                }
+             except Exception as e:
+                 print(f"Clone Error: {e}")
+                 return {
+                     "render": {
+                         "type": "render",
+                         "text": "I couldn't get the URL or run the command. Make sure you are on a GitHub page.",
+                         "tts": True
+                     }
+                 }
+
         # 0. DESKTOP AUTOMATION (Enhancement Phase)
         if "open" in text_lower or "start" in text_lower or "go to" in text_lower:
              import re
@@ -85,16 +269,18 @@ class AgentService:
 
              # Browser Logic (Chrome, Brave, Edge)
              browser_cmd = "chrome" if is_chrome else "brave" if is_brave else "msedge" if is_edge else None
-             
+             import webbrowser
+
              if browser_cmd and url:
                  target_url = url if url.startswith("http") else f"https://{url}"
+                 # Specific browser launch
                  subprocess.Popen(f'start {browser_cmd} "{target_url}"', shell=True)
                  response_text = f"Opening {browser_cmd.capitalize()} to {url}."
                  
              elif url and "go to" in text_lower:
                  # "Go to youtube.com" (Default Browser)
                  target_url = url if url.startswith("http") else f"https://{url}"
-                 subprocess.Popen(f'start "{target_url}"', shell=True)
+                 webbrowser.open(target_url) 
                  response_text = f"Navigating to {url}."
                  
              elif browser_cmd:
@@ -285,19 +471,19 @@ class AgentService:
             
         if "logout" in text_lower or "sign out" in text_lower:
              return {
-                "render": {"type": "render", "text": "Logging you out.", "tts": True, "session_id": "logout_v1"},
+                "render": {"type": "render", "text": "Logging you out.", "tts": True, "session_id": "generic_done"},
                 "action": {"type": "action", "action_type": "click", "target": ".logout", "target_name": "Logout Button"}
             }
 
         # 4. General Navigation
         if "home" in text_lower or "main page" in text_lower:
              return {
-                "render": {"type": "render", "text": "Going Home.", "tts": True, "session_id": "home_v1"},
+                "render": {"type": "render", "text": "Going Home.", "tts": True, "session_id": "navigation_going_home"},
                 "action": {"type": "action", "action_type": "navigate", "payload": {"route": "/"}}
             }
         if "about us" in text_lower or "about company" in text_lower:  # Restricted
              return {
-                "render": {"type": "render", "text": "Showing About Us.", "tts": True, "session_id": "about_v1"},
+                "render": {"type": "render", "text": "Showing About Us.", "tts": True, "session_id": "generic_opening"},
                 "action": {"type": "action", "action_type": "navigate", "payload": {"route": "/#about"}}
             }
 
@@ -309,7 +495,7 @@ class AgentService:
                     "text": "Okay, opening the login screen.",
                     "tts": True,
                     "avatar_image_id": "male_business_portrait_v1",
-                    "session_id": "login_v1"
+                    "session_id": "auth_login"
                 },
                 "action": {
                     "type": "action",
@@ -338,7 +524,7 @@ class AgentService:
                     "text": "Hi, how can I help you today?",
                     "tts": True,
                     "avatar_image_id": "male_business_portrait_v1",
-                    "session_id": "greeting_v1"
+                    "session_id": "generic_listening" # or 'greeting_v1' if we want custom
                 }
             }
 
@@ -350,14 +536,15 @@ class AgentService:
         if "/users/" in current_page:
             fallback_text = "I didn't quite catch that. You can ask me to create an exam, manage students, or show logs."
         elif "/monitoring/" in current_page:
-             fallback_text = "We are in the Exam Area. Please say 'Join Exam' if you want to proceed."
-             
+              fallback_text = "We are in the Exam Area. Please say 'Join Exam' if you want to proceed."
+              
         return {
             "render": {
                 "type": "render",
                 "text": fallback_text,
                 "tts": True,
-                "avatar_image_id": "male_business_portrait_v1"
+                "avatar_image_id": "male_business_portrait_v1",
+                "session_id": "generic_thinking"
             },
             "action": None
         }

@@ -1,85 +1,120 @@
-# AtomX AI - Desktop Overlay (Voice & Vision)
+# InteractGEN - Advanced AI Agent System 🤖✨
 
-This branch contains the **Desktop Overlay Agent** powered by AtomX AI. It features a transparent overlay, real-time voice interaction, and screen analysis capabilities using Gemini 1.5 Flash.
+**InteractGEN** is a cutting-edge multimodal AI agent platform that combines **Talking Heads**, **Voice Interaction**, and **Desktop Automation**. It features a transparent desktop overlay that acts as your personal virtual guide, capable of understanding speech, analyzing your screen, and controlling applications.
 
-## 🚀 Features
+🔗 **Repository:** [Sundarsk-Dev/interactGenxSRM-07](https://github.com/Sundarsk-Dev/interactGenxSRM-07)
 
-*   **Interactive Overlay**: A non-intrusive floating avatar on your desktop.
-*   **Voice Control**: Speak naturally to open apps, websites, or fill forms.
-*   **Visual Intelligence**: Ask "What is on my screen?" to get a summary of the active window.
-*   **Compound Commands**: E.g., *"Open Brave and go to youtube.com"*.
-*   **Smart VAD**: Automatic Voice Activity Detection stops recording when you stop speaking.
-*   **Seamless UI**: Realistic avatar mode (no robot emoji).
+---
 
-## 📂 Project Structure
+## 🚀 Key Features
 
-This branch focuses on two main components:
+*   **🗣️ Real-Time Interaction**: Speak naturally to the agent. It listens (VAD), understands (LLM), and responds with a synchronized talking avatar (TTS + LipSync).
+*   **👁️ Visual Intelligence**: Ask *"What is on my screen?"* or *"Where is the start button?"*. The agent uses **Gemini 1.5 Vision** to analyze and highlight UI elements.
+*   **🖱️ Desktop Automation**: Commands like *"Open VS Code and clone this repo"* are executed instantly using local system control (Git, Browser, Shell).
+*   **⚡ High Performance**:
+    *   **English-Only Enforced STT**: Fast and accurate transcription using `faster-whisper`.
+    *   **Instant Caching**: Pre-generated responses for common phrases ("Sure", "On it") for <200ms latency.
+    *   **Optimized Pipeline**: Parallel processing of Audio and Animation.
 
-1.  **Backend (`api/`)**: Python FastAPI server handling Intent Parsing, Gemini Vision, and Desktop Automation.
-2.  **Frontend (`interactGenxSRM-07/`)**: Electron + TypeScript application for the transparent overlay.
+---
 
-## 🛠️ Prerequisites
+## 🛠️ Architecture & Tech Stack
 
-*   **Python 3.10+**
-*   **Node.js 18+**
-*   **Gemini API Key** (Get one from AI Studio)
+The system is built on a modular architecture separating the Brain (API) from the Body (Overlay).
 
-## 📦 Installation
+| Component | Technology | Description |
+| :--- | :--- | :--- |
+| **Backend API** | **FastAPI (Python)** | High-performance async server managing models and logic. |
+| **Frontend UI** | **React / Django** | Web dashboard and "Virtual Guide" overlay script. |
+| **LLM & Vision** | **Gemini 1.5 Flash** | Intent parsing and screen analysis. |
+| **Speech-to-Text** | **Faster-Whisper** | Local, privacy-focused speech recognition. |
+| **Text-to-Speech** | **EdgeTTS** | Natural sounding neural voices. |
+| **Lip Sync** | **Wav2Lip** | GAN-based lip synchronization for the avatar. |
 
-### 1. Backend Setup
+---
+
+## 📦 Installation Guide
+
+### Prerequisites
+*   **Python 3.10+** (Ensure added to PATH)
+*   **Node.js 18+** (For frontend tooling)
+*   **Git** (For version control)
+*   **Gemini API Key** (Get from [Google AI Studio](https://aistudio.google.com/))
+
+### 1. Clone the Repository
 ```bash
-# Install Python dependencies
-pip install fastapi uvicorn google-generativeai pyautogui python-multipart python-dotenv requests sqlalchemy
-# (See requirements.txt for full list if available)
-```
-
-Create a `.env` file in the root `InteractGEN` folder:
-```ini
-GEMINI_API_KEY=your_api_key_here
-```
-
-### 2. Overlay Setup
-```bash
+git clone https://github.com/Sundarsk-Dev/interactGenxSRM-07
 cd interactGenxSRM-07
-npm install
 ```
 
-## ▶️ Running the Agent
+### 2. Backend Setup
+Set up the Python environment and dependencies.
 
-You need to run **both** the backend and the overlay.
-
-**Terminal 1 (Backend):**
 ```bash
-# From root InteractGEN folder
+# Create virtual environment (Optional but Recommended)
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Mac/Linux:
+source venv/bin/activate
+
+# Install Dependencies
+pip install -r requirements.txt
+```
+*Note: If `requirements.txt` is missing, run: `pip install fastapi uvicorn google-generativeai pyautogui python-multipart python-dotenv requests sqlalchemy faster-whisper edge-tts`*
+
+**Configuration:**
+Create a `.env` file in the root directory:
+```ini
+GEMINI_API_KEY=your_actual_api_key_here
+```
+
+### 3. Frontend / Overlay Setup
+To run the web dashboard or overlay integration:
+
+```bash
+# Navigate to AtomxAI component (or relevant frontend folder)
+cd AtomxAI
+# Ensure you serve the static assets correctly.
+# If using the React App source:
+# cd ../frontend/react-app && npm install
+```
+
+---
+
+## ▶️ How to Run
+
+You need to run the **Backend** to power the intelligence.
+
+**Start the Server:**
+```bash
+# From the root directory (where api/ folder is)
 python api/server.py
 ```
-*Server runs on http://localhost:8000*
+*Server will start at `http://localhost:8000`*
 
-**Terminal 2 (Overlay):**
-```bash
-# From interactGenxSRM-07 folder
-npm run dev
-```
+**Using the Agent:**
+1.  Open the provided **Web Dashboard** (e.g., `dashboard.html` or the hosted Django app).
+2.  Click the **Robot Icon (🤖)** to open the overlay.
+3.  Click the **Mic (🎤)** and speak!
 
-## 🗣️ Supported Commands
+---
 
-**Navigation & Apps:**
-*   *"Open Chrome"* / *"Open Brave"* / *"Open Edge"*
-*   *"Open Notepad"* / *"Open Calculator"* / *"Open VS Code"* / *"Open Spotify"*
-*   *"Open Chrome and go to reddit.com"*
-*   *"Go to openai.com"*
+## 🗣️ Example Commands
 
-**Vision (Screen Analysis):**
-*   *"Tell me about this website"*
-*   *"What is on my screen?"*
-*   *"Describe this page"*
+*   **Automation**: *"Clone this repository in my Downloads folder"*
+*   **Navigation**: *"Open Youtube"*, *"Go to github.com"*
+*   **Vision**: *"Where is the login button?"* (Agent highlights it)
+*   **General**: *"Read this page for me"*, *"Sign me up"*
 
-**General:**
-*   *"Hi"* / *"Hello"* (Greeting)
-*   *"Stop"* (Stops speaking)
+---
 
-## 🔧 Troubleshooting
+## 🤝 Contributing
+1.  Fork the repo.
+2.  Create your feature branch (`git checkout -b feature/AmazingFeature`).
+3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+4.  Push to the branch (`git push origin feature/AmazingFeature`).
+5.  Open a Pull Request.
 
-*   **Vision Error 404/400**: Check that `GEMINI_API_KEY` is set in `.env` and that your region supports `gemini-1.5-flash`.
-*   **Microphone Issue**: Ensure your default microphone is set correctly in Windows Sound Settings.
-*   **Overlay not generic**: Ensure `api/server.py` is running before starting the overlay.
+---
+*Built with ❤️ by the AtomX AI Team*

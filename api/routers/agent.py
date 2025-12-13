@@ -109,7 +109,12 @@ async def handle_audio_agent(
             
         if not transcribed_text:
              # Just return empty if silence, or error
-             return AgentResponse(render={"type": "render", "text": "I didn't catch that."})
+             return AgentResponse(render={
+                 "type": "render", 
+                 "text": "I didn't catch that.", 
+                 "tts": True,
+                 "session_id": "generic_confusion"
+             })
 
         # 3. Parse Intent
         print(f"Context raw: {context}")
